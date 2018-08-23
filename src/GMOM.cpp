@@ -91,6 +91,7 @@ int main(int argc, char *argv[]){
     estimator = new GibbsSamplerFromGMOM(orthologFile, microbeFile, A, alpha, beta, iterationNumber, burnIn, samplingInterval);
     estimator->runIteraions();
     estimator->writeParameters(PFilename, VFilename);
+    estimator->writeLogLikelihood(logLikelihoodFilename);
     delete estimator;
 //}}}
     return 0;
