@@ -44,6 +44,7 @@ template<typename T>
 void outputVector(const std::vector<T> &vector, std::string filename){
     std::ofstream stream;
     stream.open(filename, std::ios::out);
+    stream<<std::setprecision(std::numeric_limits<double>::max_digits10);
     for(int i=0;i<vector.size();i++){
         stream<<vector[i];
         stream<<std::endl;

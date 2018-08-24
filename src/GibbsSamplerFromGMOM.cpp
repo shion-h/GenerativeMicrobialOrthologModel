@@ -58,18 +58,18 @@ void GibbsSamplerFromGMOM::initializeParameters(){//{{{
     _V = vector<vector<unsigned int> >(_M, vector<unsigned int>(_G, 0));
     _P = vector<vector<double> >(_M, vector<double>(_G, 0.0));
     _sumOfPSampled = vector<vector<double> >(_M, vector<double>(_G, 0.0));
-    // std::random_device rnd;
-    // std::mt19937 mt(rnd());
-    // std::uniform_real_distribution<> rand(0.0, 1.0);
+    // random_device rnd;
+    // mt19937 mt(rnd());
+    // uniform_real_distribution<> rand(0.0, 1.0);
     // for(int j=0; j<_M; j++){
     //     for(int k=0; k<_G; k++){
     //         boost::math::beta_distribution<> distribution(_alpha, _beta);
     //         _P[j][k] = boost::math::quantile(distribution, rand(mt));
     //     }
     // }
-    std::random_device rnd;
-    std::mt19937 mt(rnd());
-    std::uniform_int_distribution<> rand(0, 1);
+    random_device rnd;
+    mt19937 mt(rnd());
+    uniform_int_distribution<> rand(0, 1);
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
             _V[j][k] = rand(mt);
@@ -128,9 +128,9 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
 }//}}}
 
 void GibbsSamplerFromGMOM::sampleP(){//{{{
-    std::random_device rnd;
-    std::mt19937 mt(rnd());
-    std::uniform_real_distribution<> rand(0.0, 1.0);
+    random_device rnd;
+    mt19937 mt(rnd());
+    uniform_real_distribution<> rand(0.0, 1.0);
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
             boost::math::beta_distribution<> distribution(_V[j][k] + _alpha, 1 - _V[j][k] + _beta);
@@ -144,6 +144,7 @@ void GibbsSamplerFromGMOM::calculateLogLikelihood(){//{{{
     for(int i=0; i<_N; i++){
         logLikelihood += calculateDirichletLogPDF(_O[i], _gamma[i]);
     }
+    cout<<setprecision(numeric_limits<double>::max_digits10);
     cout<<logLikelihood<<endl;
     _logLikelihood.push_back(logLikelihood);
 }//}}}
