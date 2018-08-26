@@ -26,7 +26,11 @@ double calculateDirichletLogPDF(vector<double> x, vector<double> alpha){//{{{
     double term1 = calculateLogBetaFunction(alpha);
     double term2 = 0;
     for(int i=0; i<x.size(); i++){
-        term2 += (alpha[i] - 1.0) * log(x[i]);
+        if(x[i] == 0.0){
+            term2 += (alpha[i] - 1.0) * log(1.0e-10);
+        }else{
+            term2 += (alpha[i] - 1.0) * log(x[i]);
+        }
     }
     return -term1 + term2;
 }//}}}
@@ -96,7 +100,7 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
             unsigned int oldVjk = _V[j][k];
             bool isFrom0 = true;
             if(oldVjk == 1) isFrom0 = false;
-            vector<double> logSamplingDistribuion(2, 0);
+            vector<double> logSamplingDistribution(2, 0);
             int step = 1;
             unsigned int initialIndex = 0;
             if(!isFrom0){
@@ -110,15 +114,15 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
                     this->updateGamma(j, k, step);
                 }
                 for(int i=0; i<_N; i++){
-                    logSamplingDistribuion[v] += calculateDirichletLogPDF(_O[i], _gamma[i]);
+                    logSamplingDistribution[v] += calculateDirichletLogPDF(_O[i], _gamma[i]);
                 }
                 if(v == 0){
-                    logSamplingDistribuion[v] += log(1 - _P[j][k]);
+                    logSamplingDistribution[v] += log(1 - _P[j][k]);
                 }else{
-                    logSamplingDistribuion[v] += log(_P[j][k]);
+                    logSamplingDistribution[v] += log(_P[j][k]);
                 }
             }
-            _V[j][k] = sampleDiscreteValues(logSamplingDistribuion, true);
+            _V[j][k] = sampleDiscreteValues(logSamplingDistribution, true);
             if(_V[j][k] != v){
                 int deltaVjk = _V[j][k] - v;
                 this->updateGamma(j, k, deltaVjk);
