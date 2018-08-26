@@ -14,7 +14,11 @@ using namespace std;
 double calculateLogBetaFunction(vector<double> alpha){//{{{
     double resultValue = 0;
     for(int i=0; i<alpha.size(); i++){
-        resultValue += boost::math::lgamma(alpha[i]);
+        if(alpha[i] == 0.0){
+            resultValue += boost::math::lgamma(1.0e-10);
+        }else{
+            resultValue += boost::math::lgamma(alpha[i]);
+        }
     }
     resultValue -= boost::math::lgamma(sum(alpha));
     return resultValue;
