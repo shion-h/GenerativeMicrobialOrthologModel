@@ -15,12 +15,12 @@ double calculateLogBetaFunction(vector<double> alpha){//{{{
     double resultValue = 0;
     for(int i=0; i<alpha.size(); i++){
         if(alpha[i] == 0.0){
-            resultValue += boost::math::lgamma(1.0e-10);
+            resultValue += std::lgamma(1.0e-10);
         }else{
-            resultValue += boost::math::lgamma(alpha[i]);
+            resultValue += std::lgamma(alpha[i]);
         }
     }
-    resultValue -= boost::math::lgamma(sum(alpha));
+    resultValue -= std::lgamma(sum(alpha));
     return resultValue;
 }//}}}
 
@@ -83,7 +83,7 @@ void GibbsSamplerFromGMOM::initializeParameters(){//{{{
             _V[j][k] = rand(mt);
         }
     }
-    _gamma = prod<double, double, unsigned int>(_U, _V);
+    _gamma = dot<double, double, unsigned int>(_U, _V);
     for(int i=0; i<_N; i++){
         for(int k=0; k<_G; k++){
             _gamma[i][k] *= _A;

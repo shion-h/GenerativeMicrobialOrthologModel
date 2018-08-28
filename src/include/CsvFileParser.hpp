@@ -46,6 +46,7 @@ public:
 
 template<class T>
 CsvFileParser<T>::CsvFileParser(std::string filename):_inputText(filename),_rowDimension(0),_columnDimension(0){//{{{
+    std::cout<<filename<<std::endl;
     this->readCsvFile();
 }//}}}
 
@@ -78,7 +79,14 @@ void CsvFileParser<T>::readCsvFile(){//{{{
         //column
         for(int j=0; std::getline(stream,token,','); j++){
             if(j==0)_rowNameVector.push_back(token);
-            else vec.push_back(boost::lexical_cast<T>(token));
+            else{
+                try{
+                    vec.push_back(boost::lexical_cast<T>(token));
+                }catch(...){
+                    std::cout<<"row:"<<i<<" column:"<<j<<" value:"<<token<<" error";
+                    exit(0);
+                }
+            }
         }
         _extractedMatrix.push_back(vec);
     }
