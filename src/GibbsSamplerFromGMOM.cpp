@@ -3,7 +3,7 @@
 //
 // Copyright (c) 2018 Shion Hosoda
 //
-// This software is released u_nder the MIT License.
+// This software is released under the MIT License.
 // http://opensource.org/licenses/mit-license.php
 //
 
@@ -37,6 +37,19 @@ double calculateDirichletLogPDF(vector<double> x, vector<double> alpha){//{{{
         }
     }
     return -term1 + term2;
+}//}}}
+
+unsigned int calculateFactorial(unsigned int x){//{{{
+    unsigned int res = 1;
+    for(int i=0; i<x; i++){
+        res *= i + 1;
+    }
+    return res;
+}//}}}
+
+double calculatePoissonLogPMF(unsigned int x, double lambda){//{{{
+    double res = pow(lambda, x) * exp(-lambda) + calculateFactorial(x);
+    return res;
 }//}}}
 
 GibbsSamplerFromGMOM::GibbsSamplerFromGMOM(const CsvFileParser<double> &orthologFile, const CsvFileParser<double> &microbeFile, double A, double alpha, double beta, unsigned int iterationNumber, unsigned int burnIn, unsigned int samplingInterval)//{{{
@@ -102,28 +115,19 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
             unsigned int oldVjk = _V[j][k];
-            bool isFrom0 = true;
-            if(oldVjk == 1) isFrom0 = false;
+            double cumulativeProbability = 0.0;
             vector<double> logSamplingDistribution(2, 0);
-            int step = 1;
-            unsigned int initialIndex = 0;
-            if(!isFrom0){
-                step = -1;
-                initialIndex = 1;
+            unsigned int v = 0;
+            while(cumulativeProbability > 0.999){
+                double thisPMF = calculatePoissonLogPMF(v, _P[k]);
+                cumulativeProbability += thisPMF;
+                logSamplingDistribution.push_back(thisPMF);
+                v++;
             }
-            unsigned int v;
-            for(int b=0; b<2; b++){
-                v = (b - initialIndex) * step;
-                if(b == 1){
-                    this->updateGamma(j, k, step);
-                }
+            for(int v=0; v<logSamplingDistribution.size(); v++){
+                this->updateGamma(j, k, v - oldVjk);
                 for(int i=0; i<_N; i++){
                     logSamplingDistribution[v] += calculateDirichletLogPDF(_O[i], _gamma[i]);
-                }
-                if(v == 0){
-                    logSamplingDistribution[v] += log(1 - _P[j][k]);
-                }else{
-                    logSamplingDistribution[v] += log(_P[j][k]);
                 }
             }
             _V[j][k] = sampleDiscreteValues(logSamplingDistribution, true);

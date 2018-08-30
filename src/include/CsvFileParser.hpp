@@ -46,7 +46,7 @@ public:
 
 template<class T>
 CsvFileParser<T>::CsvFileParser(std::string filename):_inputText(filename),_rowDimension(0),_columnDimension(0){//{{{
-    std::cout<<filename<<std::endl;
+    std::cout<<filename<<"was opened."<<std::endl;
     this->readCsvFile();
 }//}}}
 
