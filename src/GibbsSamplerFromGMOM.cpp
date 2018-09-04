@@ -11,9 +11,17 @@
 
 using namespace std;
 
-double calculateLogBetaFunction(vector<double> alpha){//{{{
+double calculateLogBetaFunction(vector<double> alpha, int i/*=-1*/){//{{{
     double resultValue = 0;
-    for(int i=0; i<alpha.size(); i++){
+    if(i == -1){
+        for(int i=0; i<alpha.size(); i++){
+            if(alpha[i] == 0.0){
+                resultValue += std::lgamma(1.0e-10);
+            }else{
+                resultValue += std::lgamma(alpha[i]);
+            }
+        }
+    }else{
         if(alpha[i] == 0.0){
             resultValue += std::lgamma(1.0e-10);
         }else{
@@ -24,19 +32,30 @@ double calculateLogBetaFunction(vector<double> alpha){//{{{
     return resultValue;
 }//}}}
 
-double calculateDirichletLogPDF(vector<double> x, vector<double> alpha){//{{{
+double calculateDirichletLogPDF(vector<double> x, vector<double> alpha, int i/*=-1*/){//{{{
     if(sum(x) > 1.1 || sum(x) < 0.9) cout<<"Sum of sample is not equals to 1."<<endl;
     if(x.size() != alpha.size()) cout<<"Sample dimension do not match parameter dimension."<<endl;
-    double term1 = calculateLogBetaFunction(alpha);
-    double term2 = 0;
-    for(int i=0; i<x.size(); i++){
+    if(i == -1){
+        double term1 = calculateLogBetaFunction(alpha);
+        double term2 = 0;
+        for(int i=0; i<x.size(); i++){
+            if(x[i] == 0.0){
+                term2 += (alpha[i] - 1.0) * log(1.0e-10);
+            }else{
+                term2 += (alpha[i] - 1.0) * log(x[i]);
+            }
+        }
+        return -term1 + term2;
+    }else{
+        double term1 = calculateLogBetaFunction(alpha, i);
+        double term2 = 0;
         if(x[i] == 0.0){
             term2 += (alpha[i] - 1.0) * log(1.0e-10);
         }else{
             term2 += (alpha[i] - 1.0) * log(x[i]);
         }
+        return -term1 + term2;
     }
-    return -term1 + term2;
 }//}}}
 
 unsigned int calculateFactorial(unsigned int x){//{{{
@@ -127,7 +146,8 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
             this->updateGamma(j, k, 0 - _V[j][k]);
             for(v=0; v<logSamplingDistribution.size(); v++){
                 for(int i=0; i<_N; i++){
-                    logSamplingDistribution[v] += calculateDirichletLogPDF(_O[i], _gamma[i]);
+                    // logSamplingDistribution[v] += calculateDirichletLogPDF(_O[i], _gamma[i]);
+                    logSamplingDistribution[v] += calculateDirichletLogPDF(_O[i], _gamma[i], k);
                 }
                 this->updateGamma(j, k, 1);
             }

@@ -27,6 +27,15 @@
 #include"utils.hpp"
 
 
+double calculateLogBetaFunction(std::vector<double> alpha, int i=-1);
+
+
+double calculateDirichletLogPDF(std::vector<double> x, std::vector<double> alpha, int i=-1);
+
+
+unsigned int calculateFactorial(unsigned int x);
+
+
 class GibbsSamplerFromGMOM{
 protected:
     const std::vector<std::vector<double> > &_O, &_U;
