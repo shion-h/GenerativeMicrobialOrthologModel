@@ -47,22 +47,22 @@ unsigned int calculateFactorial(unsigned int x){//{{{
     return res;
 }//}}}
 
-double calculatePoissonLogPMF(unsigned int x, double lambda){//{{{
-    double res = pow(lambda, x) * exp(-lambda) + calculateFactorial(x);
+double calculatePoissonPMF(unsigned int x, double lambda){//{{{
+    double res = pow(lambda, x) * exp(-lambda) / calculateFactorial(x);
     return res;
 }//}}}
 
-GibbsSamplerFromGMOM::GibbsSamplerFromGMOM(const CsvFileParser<double> &orthologFile, const CsvFileParser<double> &microbeFile, double A, double alpha, double beta, unsigned int iterationNumber, unsigned int burnIn, unsigned int samplingInterval)//{{{
+GibbsSamplerFromGMOM::GibbsSamplerFromGMOM(const CsvFileParser<double> &orthologFile, const CsvFileParser<double> &microbeFile, double A, double k, double theta, unsigned int iterationNumber, unsigned int burnIn, unsigned int samplingInterval)//{{{
     :_O(orthologFile.getExtractedMatrix()),
      _U(microbeFile.getExtractedMatrix()),
      _N(_O.size()),
      _M(_U[0].size()),
      _G(_O[0].size()),
      _V(_M),
-     _P(_M),
+     _P(_G),
      _A(A),
-     _alpha(alpha),
-     _beta(beta),
+     _k(k),
+     _theta(theta),
      _iterationNumber(iterationNumber),
      _burnIn(burnIn),
      _samplingInterval(samplingInterval),
@@ -77,8 +77,9 @@ GibbsSamplerFromGMOM::~GibbsSamplerFromGMOM(){//{{{
 
 void GibbsSamplerFromGMOM::initializeParameters(){//{{{
     _V = vector<vector<unsigned int> >(_M, vector<unsigned int>(_G, 0));
-    _P = vector<vector<double> >(_M, vector<double>(_G, 0.0));
-    _sumOfPSampled = vector<vector<double> >(_M, vector<double>(_G, 0.0));
+    _sumOfVSampled = vector<vector<double> >(_M, vector<double>(_G, 0.0));
+    _P = vector<double>(_G, 0.0);
+    _sumOfPSampled = vector<double>(_G, 0.0);
     // random_device rnd;
     // mt19937 mt(rnd());
     // uniform_real_distribution<> rand(0.0, 1.0);
@@ -90,7 +91,7 @@ void GibbsSamplerFromGMOM::initializeParameters(){//{{{
     // }
     random_device rnd;
     mt19937 mt(rnd());
-    uniform_int_distribution<> rand(0, 1);
+    poisson_distribution<> rand(1.0);
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
             _V[j][k] = rand(mt);
@@ -114,27 +115,24 @@ void GibbsSamplerFromGMOM::updateGamma(unsigned int j, unsigned int k, int delta
 void GibbsSamplerFromGMOM::sampleV(){//{{{
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
-            unsigned int oldVjk = _V[j][k];
             double cumulativeProbability = 0.0;
             vector<double> logSamplingDistribution(2, 0);
             unsigned int v = 0;
-            while(cumulativeProbability > 0.999){
-                double thisPMF = calculatePoissonLogPMF(v, _P[k]);
+            while(cumulativeProbability < 0.999){
+                double thisPMF = calculatePoissonPMF(v, _P[k]);
                 cumulativeProbability += thisPMF;
-                logSamplingDistribution.push_back(thisPMF);
+                logSamplingDistribution.push_back(log(thisPMF));
                 v++;
             }
-            for(int v=0; v<logSamplingDistribution.size(); v++){
-                this->updateGamma(j, k, v - oldVjk);
+            this->updateGamma(j, k, 0 - _V[j][k]);
+            for(v=0; v<logSamplingDistribution.size(); v++){
                 for(int i=0; i<_N; i++){
                     logSamplingDistribution[v] += calculateDirichletLogPDF(_O[i], _gamma[i]);
                 }
+                this->updateGamma(j, k, 1);
             }
             _V[j][k] = sampleDiscreteValues(logSamplingDistribution, true);
-            if(_V[j][k] != v){
-                int deltaVjk = _V[j][k] - v;
-                this->updateGamma(j, k, deltaVjk);
-            }
+            this->updateGamma(j, k, _V[j][k] - v);
         }
     }
 }//}}}
@@ -142,12 +140,15 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
 void GibbsSamplerFromGMOM::sampleP(){//{{{
     random_device rnd;
     mt19937 mt(rnd());
-    uniform_real_distribution<> rand(0.0, 1.0);
+    vector<unsigned int> VSum(_G, 0);
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
-            boost::math::beta_distribution<> distribution(_V[j][k] + _alpha, 1 - _V[j][k] + _beta);
-            _P[j][k] = boost::math::quantile(distribution, rand(mt));
+            VSum[k] += _V[j][k];
         }
+    }
+    for(int k=0; k<_G; k++){
+        std::gamma_distribution<> distribution(VSum[k] + _k, 1 / (_M + 1/_theta));
+        _P[k] = distribution(mt);
     }
 }//}}}
 
@@ -174,8 +175,11 @@ void GibbsSamplerFromGMOM::storeSamples(){//{{{
     _samplingCount++;
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
-            _sumOfPSampled[j][k] += _P[j][k];
+            _sumOfVSampled[j][k] += _V[j][k];
         }
+    }
+    for(int k=0; k<_G; k++){
+        _sumOfPSampled[k] += _P[k];
     }
 }//}}}
 
@@ -190,7 +194,10 @@ void GibbsSamplerFromGMOM::runIteraions(){//{{{
     }
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
-            _sumOfPSampled[j][k] /= _samplingCount;
+            _sumOfVSampled[j][k] /= _samplingCount;
         }
+    }
+    for(int k=0; k<_G; k++){
+        _sumOfPSampled[k] /= _samplingCount;
     }
 }//}}}

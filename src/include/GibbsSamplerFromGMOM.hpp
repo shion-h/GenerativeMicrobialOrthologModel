@@ -32,13 +32,15 @@ protected:
     const std::vector<std::vector<double> > &_O, &_U;
     const unsigned int _N, _M, _G;
     const unsigned int _iterationNumber, _burnIn, _samplingInterval;
-    const double _alpha, _beta, _A;
+    const double _k, _theta, _A;
     std::vector<std::vector<unsigned int> > _V;
-    std::vector<std::vector<double> > _P, _sumOfPSampled, _gamma;
+    std::vector<std::vector<double> > _sumOfVSampled;
+    std::vector<double> _P, _sumOfPSampled;
+    std::vector<std::vector<double> > _gamma;
     unsigned int _samplingCount;
     std::vector<double> _logLikelihood;
 public:
-    GibbsSamplerFromGMOM(const CsvFileParser<double> &orthologFile, const CsvFileParser<double> &microbeFile, double A, double alpha, double beta, unsigned int iterationNumber, unsigned int burnIn, unsigned int samplingInterval);
+    GibbsSamplerFromGMOM(const CsvFileParser<double> &orthologFile, const CsvFileParser<double> &microbeFile, double A, double k, double theta, unsigned int iterationNumber, unsigned int burnIn, unsigned int samplingInterval);
     virtual ~GibbsSamplerFromGMOM();
     virtual void initializeParameters();
     virtual void updateGamma(unsigned int j, unsigned int k, int deltaVjk);

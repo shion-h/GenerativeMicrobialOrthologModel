@@ -27,8 +27,8 @@ int main(int argc, char *argv[]){
     ("itnm,n", boost::program_options::value<unsigned int>()->default_value(1000), "the number of iteration")
     ("intr,i", boost::program_options::value<unsigned int>()->default_value(5), "sampling interval")
     ("bnin,b", boost::program_options::value<unsigned int>()->default_value(500), "burn-in term")
-    ("alph,a", boost::program_options::value<double>()->default_value(0.5), "alpha value")
-    ("beta,c", boost::program_options::value<double>()->default_value(0.5), "beta value")
+    ("k,k", boost::program_options::value<double>()->default_value(0.5), "k value")
+    ("theta,t", boost::program_options::value<double>()->default_value(0.5), "theta value")
     ("A,A", boost::program_options::value<double>()->default_value(1000.0), "A value")
     ;
 
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]){
     boost::program_options::notify(vm);
     string orthologFilename;
     string microbeFilename;
-    double alpha, beta, A;
+    double k, theta, A;
     unsigned int iterationNumber;
     unsigned int samplingInterval;
     unsigned int burnIn;
@@ -69,8 +69,8 @@ int main(int argc, char *argv[]){
     }else{
         orthologFilename = vm["orthologfile"].as<std::string>();
         microbeFilename = vm["microbefile"].as<std::string>();
-        if(vm.count("alph"))alpha = vm["alph"].as<double>();
-        if(vm.count("beta"))beta = vm["beta"].as<double>();
+        if(vm.count("k"))k = vm["k"].as<double>();
+        if(vm.count("theta"))theta = vm["theta"].as<double>();
         if(vm.count("A"))A = vm["A"].as<double>();
         if(vm.count("itnm"))iterationNumber = vm["itnm"].as<unsigned int>();
         if(vm.count("intr"))samplingInterval = vm["intr"].as<unsigned int>();
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]){
 
 //estimation{{{
     GibbsSamplerFromGMOM *estimator;
-    estimator = new GibbsSamplerFromGMOM(orthologFile, microbeFile, A, alpha, beta, iterationNumber, burnIn, samplingInterval);
+    estimator = new GibbsSamplerFromGMOM(orthologFile, microbeFile, A, k, theta, iterationNumber, burnIn, samplingInterval);
     estimator->runIteraions();
     estimator->writeParameters(PFilename, VFilename);
     estimator->writeLogLikelihood(logLikelihoodFilename);
