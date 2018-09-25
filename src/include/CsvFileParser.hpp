@@ -13,6 +13,7 @@
 #include<string>
 #include<vector>
 #include<fstream>
+#include<cmath>
 
 template<class T>
 class CsvFileParser{
@@ -27,6 +28,7 @@ public:
     CsvFileParser(std::string filename);
     ~CsvFileParser();
     void readCsvFile();
+    void convertLog();
     const std::vector<std::vector<T> > &getExtractedMatrix()const{
         return _extractedMatrix;
     }
@@ -93,5 +95,18 @@ void CsvFileParser<T>::readCsvFile(){//{{{
 
     _columnDimension = _columnNameVector.size();
     _rowDimension = _rowNameVector.size();
+}//}}}
+
+template<class T>
+void CsvFileParser<T>::convertLog(){//{{{
+    for(int i=0; i<_extractedMatrix.size(); i++){
+        for(int j=0; j<_extractedMatrix[i].size(); j++){
+            try{
+                _extractedMatrix[i][j] = std::log(_extractedMatrix[i][j]);
+            }catch(...){
+                _extractedMatrix[i][j] = -230.26;
+            }
+        }
+    }
 }//}}}
 #endif

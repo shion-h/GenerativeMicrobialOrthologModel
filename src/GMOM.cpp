@@ -22,13 +22,12 @@ int main(int argc, char *argv[]){
     boost::program_options::options_description opt("Options");
     opt.add_options()
     ("help,h", "show help")
-    ("cdrt,d", boost::program_options::value<double>()->default_value(0.001), "convergence ditermination rate")
     ("otpt,o", boost::program_options::value<string>()->default_value("./"), "directory name for output")
     ("itnm,n", boost::program_options::value<unsigned int>()->default_value(1000), "the number of iteration")
     ("intr,i", boost::program_options::value<unsigned int>()->default_value(5), "sampling interval")
     ("bnin,b", boost::program_options::value<unsigned int>()->default_value(500), "burn-in term")
-    ("k,k", boost::program_options::value<double>()->default_value(0.5), "k value")
-    ("theta,t", boost::program_options::value<double>()->default_value(0.5), "theta value")
+    ("k,k", boost::program_options::value<double>()->default_value(1.0), "k value")
+    ("theta,t", boost::program_options::value<double>()->default_value(1.0), "theta value")
     ("A,A", boost::program_options::value<double>()->default_value(1000.0), "A value")
     ;
 
@@ -84,6 +83,7 @@ int main(int argc, char *argv[]){
 
     CsvFileParser<double> orthologFile(orthologFilename);
     CsvFileParser<double> microbeFile(microbeFilename);
+    orthologFile.convertLog();
     //}}}
 
 //estimation{{{

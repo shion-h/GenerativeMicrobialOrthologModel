@@ -38,7 +38,7 @@ unsigned int calculateFactorial(unsigned int x);
 
 class GibbsSamplerFromGMOM{
 protected:
-    const std::vector<std::vector<double> > &_O, &_U;
+    const std::vector<std::vector<double> > &_logO, &_U;
     const unsigned int _N, _M, _G;
     const unsigned int _iterationNumber, _burnIn, _samplingInterval;
     const double _k, _theta, _A;
@@ -53,6 +53,7 @@ public:
     virtual ~GibbsSamplerFromGMOM();
     virtual void initializeParameters();
     virtual void updateGamma(unsigned int j, unsigned int k, int deltaVjk);
+    virtual double calculateDirichletLogPDF(int k=-1);
     virtual void sampleV();
     virtual void sampleP();
     virtual void calculateLogLikelihood();

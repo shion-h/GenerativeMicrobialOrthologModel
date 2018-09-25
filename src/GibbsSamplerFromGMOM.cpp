@@ -16,20 +16,22 @@ double calculateLogBetaFunction(vector<double> alpha, int i/*=-1*/){//{{{
     if(i == -1){
         for(int i=0; i<alpha.size(); i++){
             if(alpha[i] == 0.0){
-                resultValue += std::lgamma(1.0e-10);
+                resultValue += -230.26/* == lgamma(1.0e-100)*/;
             }else{
                 resultValue += std::lgamma(alpha[i]);
             }
         }
+        resultValue -= std::lgamma(sum(alpha));
+        return resultValue;
     }else{
         if(alpha[i] == 0.0){
-            resultValue += std::lgamma(1.0e-10);
+            resultValue += -230.26/* == lgamma(1.0e-100)*/;
         }else{
             resultValue += std::lgamma(alpha[i]);
         }
+        resultValue -= std::lgamma(sum(alpha));
+        return resultValue;
     }
-    resultValue -= std::lgamma(sum(alpha));
-    return resultValue;
 }//}}}
 
 double calculateDirichletLogPDF(vector<double> x, vector<double> alpha, int i/*=-1*/){//{{{
@@ -40,7 +42,7 @@ double calculateDirichletLogPDF(vector<double> x, vector<double> alpha, int i/*=
         double term2 = 0;
         for(int i=0; i<x.size(); i++){
             if(x[i] == 0.0){
-                term2 += (alpha[i] - 1.0) * log(1.0e-10);
+                term2 += (alpha[i] - 1.0) * (-230.26)/* == log(1.0e-100)*/;
             }else{
                 term2 += (alpha[i] - 1.0) * log(x[i]);
             }
@@ -50,7 +52,7 @@ double calculateDirichletLogPDF(vector<double> x, vector<double> alpha, int i/*=
         double term1 = calculateLogBetaFunction(alpha, i);
         double term2 = 0;
         if(x[i] == 0.0){
-            term2 += (alpha[i] - 1.0) * log(1.0e-10);
+            term2 += (alpha[i] - 1.0) * (-230.26)/* == log(1.0e-100)*/;
         }else{
             term2 += (alpha[i] - 1.0) * log(x[i]);
         }
@@ -67,16 +69,17 @@ unsigned int calculateFactorial(unsigned int x){//{{{
 }//}}}
 
 double calculatePoissonPMF(unsigned int x, double lambda){//{{{
+    // >=35 will be overflow
     double res = pow(lambda, x) * exp(-lambda) / calculateFactorial(x);
     return res;
 }//}}}
 
 GibbsSamplerFromGMOM::GibbsSamplerFromGMOM(const CsvFileParser<double> &orthologFile, const CsvFileParser<double> &microbeFile, double A, double k, double theta, unsigned int iterationNumber, unsigned int burnIn, unsigned int samplingInterval)//{{{
-    :_O(orthologFile.getExtractedMatrix()),
+    :_logO(orthologFile.getExtractedMatrix()),
      _U(microbeFile.getExtractedMatrix()),
-     _N(_O.size()),
+     _N(_logO.size()),
      _M(_U[0].size()),
-     _G(_O[0].size()),
+     _G(_logO[0].size()),
      _V(_M),
      _P(_G),
      _A(A),
@@ -131,11 +134,30 @@ void GibbsSamplerFromGMOM::updateGamma(unsigned int j, unsigned int k, int delta
     }
 }//}}}
 
+double GibbsSamplerFromGMOM::calculateDirichletLogPDF(int k/*=-1*/){//{{{
+    double term1 = 0;
+    double term2 = 0;
+    if(k == -1){
+        for(int i=0; i<_N; i++){
+            term1 += calculateLogBetaFunction(_gamma[i]);
+            for(int k=0; k<_G; k++){
+                term2 += (_gamma[i][k] - 1.0) * _logO[i][k];
+            }
+        }
+    }else{
+        for(int i=0; i<_N; i++){
+            term1 += calculateLogBetaFunction(_gamma[i], k);
+            term2 += (_gamma[i][k] - 1.0) * _logO[i][k];
+        }
+    }
+    return -term1 + term2;
+}//}}}
+
 void GibbsSamplerFromGMOM::sampleV(){//{{{
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
             double cumulativeProbability = 0.0;
-            vector<double> logSamplingDistribution(2, 0);
+            vector<double> logSamplingDistribution;
             unsigned int v = 0;
             while(cumulativeProbability < 0.999){
                 double thisPMF = calculatePoissonPMF(v, _P[k]);
@@ -145,10 +167,7 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
             }
             this->updateGamma(j, k, 0 - _V[j][k]);
             for(v=0; v<logSamplingDistribution.size(); v++){
-                for(int i=0; i<_N; i++){
-                    // logSamplingDistribution[v] += calculateDirichletLogPDF(_O[i], _gamma[i]);
-                    logSamplingDistribution[v] += calculateDirichletLogPDF(_O[i], _gamma[i], k);
-                }
+                logSamplingDistribution[v] += this->calculateDirichletLogPDF(k);
                 this->updateGamma(j, k, 1);
             }
             _V[j][k] = sampleDiscreteValues(logSamplingDistribution, true);
@@ -173,10 +192,7 @@ void GibbsSamplerFromGMOM::sampleP(){//{{{
 }//}}}
 
 void GibbsSamplerFromGMOM::calculateLogLikelihood(){//{{{
-    double logLikelihood = 0;
-    for(int i=0; i<_N; i++){
-        logLikelihood += calculateDirichletLogPDF(_O[i], _gamma[i]);
-    }
+    double logLikelihood = this->calculateDirichletLogPDF();
     cout<<setprecision(numeric_limits<double>::max_digits10);
     cout<<logLikelihood<<endl;
     _logLikelihood.push_back(logLikelihood);
@@ -184,7 +200,7 @@ void GibbsSamplerFromGMOM::calculateLogLikelihood(){//{{{
 
 void GibbsSamplerFromGMOM::writeParameters(string PFilename, string VFilename)const{//{{{
     outputVector(_sumOfPSampled, PFilename);
-    outputVector(_V, VFilename);
+    outputVector(_sumOfVSampled, VFilename);
 }//}}}
 
 void GibbsSamplerFromGMOM::writeLogLikelihood(string logLikelihoodFilename)const{//{{{
