@@ -101,9 +101,9 @@ template<class T>
 void CsvFileParser<T>::convertLog(){//{{{
     for(int i=0; i<_extractedMatrix.size(); i++){
         for(int j=0; j<_extractedMatrix[i].size(); j++){
-            try{
+            if(_extractedMatrix[i][j] > 10e-10){
                 _extractedMatrix[i][j] = std::log(_extractedMatrix[i][j]);
-            }catch(...){
+            }else{
                 _extractedMatrix[i][j] = -230.26;
             }
         }
