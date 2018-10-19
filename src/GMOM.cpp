@@ -10,6 +10,9 @@
 //include{{{
 #include <stdlib.h>
 #include <boost/program_options.hpp>
+#include <boost/mpi/environment.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <boost/mpi/collectives.hpp>
 #include "include/CsvFileParser.hpp"
 #include "include/GibbsSamplerFromGMOM.hpp"
 //}}}
@@ -88,10 +91,14 @@ int main(int argc, char *argv[]){
 
 //estimation{{{
     GibbsSamplerFromGMOM *estimator;
-    estimator = new GibbsSamplerFromGMOM(orthologFile, microbeFile, A, k, theta, iterationNumber, burnIn, samplingInterval);
+    bmpi::environment env(argc, argv);
+    bmpi::communicator world;
+    estimator = new GibbsSamplerFromGMOM(orthologFile, microbeFile, A, k, theta, iterationNumber, burnIn, samplingInterval, world);
     estimator->runIteraions();
-    estimator->writeParameters(PFilename, VFilename);
-    estimator->writeLogLikelihood(logLikelihoodFilename);
+    if(world.rank() == 0){
+        estimator->writeParameters(PFilename, VFilename);
+        estimator->writeLogLikelihood(logLikelihoodFilename);
+    }
     delete estimator;
 //}}}
     return 0;
