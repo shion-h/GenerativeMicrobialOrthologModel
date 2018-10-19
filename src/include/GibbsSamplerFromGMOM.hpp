@@ -23,14 +23,8 @@
 #include<limits>
 #include <boost/math/distributions/beta.hpp>
 #include <boost/math/special_functions/gamma.hpp>
-#include <boost/mpi/environment.hpp>
-#include <boost/mpi/communicator.hpp>
-#include <boost/mpi/collectives.hpp>
 #include"CsvFileParser.hpp"
 #include"utils.hpp"
-
-
-namespace bmpi = boost::mpi;
 
 
 double calculateLogBetaFunction(std::vector<double> alpha, int i=-1);
@@ -54,9 +48,8 @@ protected:
     std::vector<std::vector<double> > _gamma;
     unsigned int _samplingCount;
     std::vector<double> _logLikelihood;
-    bmpi::communicator _world;
 public:
-    GibbsSamplerFromGMOM(const CsvFileParser<double> &orthologFile, const CsvFileParser<double> &microbeFile, double A, double k, double theta, unsigned int iterationNumber, unsigned int burnIn, unsigned int samplingInterval, bmpi::communicator &world);
+    GibbsSamplerFromGMOM(const CsvFileParser<double> &orthologFile, const CsvFileParser<double> &microbeFile, double A, double k, double theta, unsigned int iterationNumber, unsigned int burnIn, unsigned int samplingInterval);
     virtual ~GibbsSamplerFromGMOM();
     virtual void initializeParameters();
     virtual void updateGamma(unsigned int j, unsigned int k, int deltaVjk);
