@@ -50,7 +50,7 @@ protected:
     const double _k, _theta, _A;
     std::vector<std::vector<unsigned int> > _V;
     std::vector<std::vector<double> > _sumOfVSampled;
-    std::vector<double> _P, _sumOfPSampled;
+    std::vector<std::vector<double> > _P, _sumOfPSampled;
     std::vector<std::vector<double> > _gamma;
     unsigned int _samplingCount;
     std::vector<double> _logLikelihood;

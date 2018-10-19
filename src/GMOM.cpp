@@ -95,8 +95,10 @@ int main(int argc, char *argv[]){
     bmpi::communicator world;
     estimator = new GibbsSamplerFromGMOM(orthologFile, microbeFile, A, k, theta, iterationNumber, burnIn, samplingInterval, world);
     estimator->runIteraions();
-    estimator->writeParameters(PFilename, VFilename);
-    estimator->writeLogLikelihood(logLikelihoodFilename);
+    if(world.rank() == 0){
+        estimator->writeParameters(PFilename, VFilename);
+        estimator->writeLogLikelihood(logLikelihoodFilename);
+    }
     delete estimator;
 //}}}
     return 0;
