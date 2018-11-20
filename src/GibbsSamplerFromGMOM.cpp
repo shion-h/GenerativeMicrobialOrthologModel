@@ -60,18 +60,17 @@ double calculateDirichletLogPDF(vector<double> x, vector<double> alpha, int i/*=
     }
 }//}}}
 
-unsigned int calculateFactorial(unsigned int x){//{{{
-    unsigned int res = 1;
+double calculateLogFactorial(unsigned int x){//{{{
+    double res = 0;
     for(int i=0; i<x; i++){
-        res *= i + 1;
+        res += log(i + 1);
     }
     return res;
 }//}}}
 
 double calculatePoissonPMF(unsigned int x, double lambda){//{{{
-    // >=35 will be overflow
-    double res = pow(lambda, x) * exp(-lambda) / calculateFactorial(x);
-    return res;
+    double res = x * log(lambda) - lambda - calculateLogFactorial(x);
+    return exp(res);
 }//}}}
 
 GibbsSamplerFromGMOM::GibbsSamplerFromGMOM(const CsvFileParser<double> &orthologFile, const CsvFileParser<double> &microbeFile, double A, double k, double theta, unsigned int iterationNumber, unsigned int burnIn, unsigned int samplingInterval, bmpi::communicator &world)//{{{
@@ -81,7 +80,7 @@ GibbsSamplerFromGMOM::GibbsSamplerFromGMOM(const CsvFileParser<double> &ortholog
      _M(_U[0].size()),
      _G(_logO[0].size()),
      _V(_M),
-     _P(_G),
+     _P(_M),
      _A(A),
      _k(k),
      _theta(theta),
@@ -101,8 +100,8 @@ GibbsSamplerFromGMOM::~GibbsSamplerFromGMOM(){//{{{
 void GibbsSamplerFromGMOM::initializeParameters(){//{{{
     _V = vector<vector<unsigned int> >(_M, vector<unsigned int>(_G, 0));
     _sumOfVSampled = vector<vector<double> >(_M, vector<double>(_G, 0.0));
-    _P = vector<double>(_G, 0.0);
-    _sumOfPSampled = vector<double>(_G, 0.0);
+    _P = vector<double>(_M, 0);
+    _sumOfPSampled = vector<double>(_M, 0);
     // random_device rnd;
     // mt19937 mt(rnd());
     // uniform_real_distribution<> rand(0.0, 1.0);
@@ -165,7 +164,7 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
             vector<double> logSamplingDistribution;
             unsigned int v = 0;
             while(cumulativeProbability < 0.999){
-                double thisPMF = calculatePoissonPMF(v, _P[k]);
+                double thisPMF = calculatePoissonPMF(v, _P[j]);
                 cumulativeProbability += thisPMF;
                 logSamplingDistribution.push_back(log(thisPMF));
                 v++;
@@ -182,7 +181,7 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
             for(v=0; v<logSamplingDistribution.size(); v++){
                 bmpi::broadcast(_world, logSamplingDistribution[v], v%_world.size());
             }
-            if(_world.rank()==0){
+            if(_world.rank() == 0){
                 _V[j][k] = sampleDiscreteValues(logSamplingDistribution, true);
             }
             bmpi::broadcast(_world, _V[j][k], 0);
@@ -194,21 +193,16 @@ void GibbsSamplerFromGMOM::sampleV(){//{{{
 void GibbsSamplerFromGMOM::sampleP(){//{{{
     random_device rnd;
     mt19937 mt(rnd());
-    vector<unsigned int> VSum(_G, 0);
     for(int j=0; j<_M; j++){
-        for(int k=0; k<_G; k++){
-            VSum[k] += _V[j][k];
-        }
-    }
-    for(int k=0; k<_G; k++){
-        if((k%_world.size()) == _world.rank()){
-            std::gamma_distribution<> distribution(VSum[k] + _k, 1 / (_M + 1/_theta));
-            _P[k] = distribution(mt);
+        unsigned int vjSum = sum(_V[j]);
+        if((j%_world.size()) == _world.rank()){
+            std::gamma_distribution<> distribution(vjSum + _k, _theta / (_G * _theta + 1));
+            _P[j] = distribution(mt);
         }
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    for(int k=0; k<_G; k++){
-        bmpi::broadcast(_world, _P[k], k%_world.size());
+    for(int j=0; j<_M; j++){
+        bmpi::broadcast(_world, _P[j], j%_world.size());
     }
 }//}}}
 
@@ -234,9 +228,7 @@ void GibbsSamplerFromGMOM::storeSamples(){//{{{
         for(int k=0; k<_G; k++){
             _sumOfVSampled[j][k] += _V[j][k];
         }
-    }
-    for(int k=0; k<_G; k++){
-        _sumOfPSampled[k] += _P[k];
+        _sumOfPSampled[j] += _P[j];
     }
 }//}}}
 
@@ -253,8 +245,6 @@ void GibbsSamplerFromGMOM::runIteraions(){//{{{
         for(int k=0; k<_G; k++){
             _sumOfVSampled[j][k] /= _samplingCount;
         }
-    }
-    for(int k=0; k<_G; k++){
-        _sumOfPSampled[k] /= _samplingCount;
+        _sumOfPSampled[j] /= _samplingCount;
     }
 }//}}}
