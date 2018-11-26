@@ -87,7 +87,6 @@ GibbsSamplerFromGMOM::GibbsSamplerFromGMOM(const CsvFileParser<double> &ortholog
      _iterationNumber(iterationNumber),
      _burnIn(burnIn),
      _samplingInterval(samplingInterval),
-     _samplingCount(0),
      _world(world)
 {
     this->initializeParameters();
@@ -99,9 +98,9 @@ GibbsSamplerFromGMOM::~GibbsSamplerFromGMOM(){//{{{
 
 void GibbsSamplerFromGMOM::initializeParameters(){//{{{
     _V = vector<vector<unsigned int> >(_M, vector<unsigned int>(_G, 0));
-    _sumOfVSampled = vector<vector<double> >(_M, vector<double>(_G, 0.0));
+    _sampledV = vector<vector<vector<unsigned int> > >(_M, vector<vector<unsigned int> >(_G, vector<unsigned int>(0, 0.0)));
     _P = vector<double>(_M, 0);
-    _sumOfPSampled = vector<double>(_M, 0);
+    _sampledP = vector<vector<double> >(_M, vector<double>(0, 0.0));
     // random_device rnd;
     // mt19937 mt(rnd());
     // uniform_real_distribution<> rand(0.0, 1.0);
@@ -213,9 +212,23 @@ void GibbsSamplerFromGMOM::calculateLogLikelihood(){//{{{
     _logLikelihood.push_back(logLikelihood);
 }//}}}
 
-void GibbsSamplerFromGMOM::writeParameters(string PFilename, string VFilename)const{//{{{
-    outputVector(_sumOfPSampled, PFilename);
-    outputVector(_sumOfVSampled, VFilename);
+void GibbsSamplerFromGMOM::writeParameters(string PFilename, string VFilename, string SampledPFilename, string SampledVFilename)const{//{{{
+    vector<vector<double> > tempV = vector<vector<double> >(_M, vector<double>(_G, 0));
+    vector<double> tempP = vector<double>(_M, 0);
+    for(int j=0; j<_M; j++){
+        tempP[j] = mean(_sampledP[j]);
+    }
+
+    for(int j=0; j<_M; j++){
+        for(int k=0; k<_G; k++){
+            tempV[j][k] = mean(_sampledV[j][k]);
+        }
+    }
+
+    outputVector(tempP, PFilename);
+    outputVector(tempV, VFilename);
+    outputVector(_sampledP, SampledPFilename);
+    outputVector(_sampledV, SampledVFilename);
 }//}}}
 
 void GibbsSamplerFromGMOM::writeLogLikelihood(string logLikelihoodFilename)const{//{{{
@@ -223,12 +236,11 @@ void GibbsSamplerFromGMOM::writeLogLikelihood(string logLikelihoodFilename)const
 }//}}}
 
 void GibbsSamplerFromGMOM::storeSamples(){//{{{
-    _samplingCount++;
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
-            _sumOfVSampled[j][k] += _V[j][k];
+            _sampledV[j][k].push_back(_V[j][k]);
         }
-        _sumOfPSampled[j] += _P[j];
+        _sampledP[j].push_back(_P[j]);
     }
 }//}}}
 
@@ -240,11 +252,5 @@ void GibbsSamplerFromGMOM::runIteraions(){//{{{
         if((i > _burnIn - 1) && ((i + 1) % _samplingInterval == 0)){
             this->storeSamples();
         }
-    }
-    for(int j=0; j<_M; j++){
-        for(int k=0; k<_G; k++){
-            _sumOfVSampled[j][k] /= _samplingCount;
-        }
-        _sumOfPSampled[j] /= _samplingCount;
     }
 }//}}}

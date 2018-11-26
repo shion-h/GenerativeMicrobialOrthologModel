@@ -22,6 +22,21 @@
 #include<fstream>
 #include<limits>
 
+template<typename T>
+void outputVector(const std::vector<std::vector<std::vector<T> > > &vector, std::string filename){
+    std::ofstream stream;
+    stream.open(filename, std::ios::out);
+
+    for(int i=0; i<vector.size(); i++){
+        for(int j=0; j<vector[i].size(); j++){
+            for(int k=0; k<vector[i][j].size(); k++){
+                stream<<i<<','<<j<<','<<k<<','<<vector[i][j][k];
+                stream<<std::endl;
+            }
+        }
+    }
+    stream.close();
+}
 
 template<typename T>
 void outputVector(const std::vector<std::vector<T> > &vector, std::string filename){
@@ -158,6 +173,11 @@ T sum(std::vector<std::vector<T> > matrix){
 template<typename T>
 T sum(std::vector<T> vector){
     return accumulate(vector.begin(), vector.end(), 0.0);
+}
+
+template<typename T>
+double mean(std::vector<T> vector){
+    return accumulate(vector.begin(), vector.end(), 0.0) / vector.size();
 }
 
 template<typename T>

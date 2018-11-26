@@ -49,10 +49,10 @@ protected:
     const unsigned int _iterationNumber, _burnIn, _samplingInterval;
     const double _k, _theta, _A;
     std::vector<std::vector<unsigned int> > _V;
-    std::vector<std::vector<double> > _sumOfVSampled;
-    std::vector<double> _P, _sumOfPSampled;
+    std::vector<std::vector<std::vector<unsigned int> > > _sampledV;
+    std::vector<double> _P;
+    std::vector<std::vector<double> > _sampledP;
     std::vector<std::vector<double> > _gamma;
-    unsigned int _samplingCount;
     std::vector<double> _logLikelihood;
     bmpi::communicator _world;
 public:
@@ -64,7 +64,7 @@ public:
     virtual void sampleV();
     virtual void sampleP();
     virtual void calculateLogLikelihood();
-    virtual void writeParameters(std::string PFilename, std::string VFilename)const;
+    virtual void writeParameters(std::string PFilename, std::string VFilename, std::string SampledPFilename, std::string SampledVFilename)const;
     virtual void writeLogLikelihood(std::string logLikelihoodFilename)const;
     virtual void storeSamples();
     virtual void runIteraions();

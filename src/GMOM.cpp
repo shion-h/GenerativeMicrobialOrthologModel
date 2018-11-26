@@ -60,8 +60,8 @@ int main(int argc, char *argv[]){
     unsigned int samplingInterval;
     unsigned int burnIn;
     string outputDirectory;
-    string PFilename;
-    string VFilename;
+    string PFilename, SampledPFilename;
+    string VFilename, SampledVFilename;
     string logLikelihoodFilename;
     if (vm.count("help") || !vm.count("orthologfile") || !vm.count("microbefile")){
         cout<<"Usage:\n GMOM [ortholog file] [microbe file] [-options] "<<endl;
@@ -81,6 +81,8 @@ int main(int argc, char *argv[]){
         if(outputDirectory[outputDirectory.size()-1] != '/')outputDirectory.push_back('/');
         PFilename = outputDirectory + "P.csv";
         VFilename = outputDirectory + "V.csv";
+        SampledPFilename = outputDirectory + "SampledP.csv";
+        SampledVFilename = outputDirectory + "SampledV.csv";
         logLikelihoodFilename = outputDirectory + "LogLikelihood.csv";
     }
 
@@ -96,7 +98,7 @@ int main(int argc, char *argv[]){
     estimator = new GibbsSamplerFromGMOM(orthologFile, microbeFile, A, k, theta, iterationNumber, burnIn, samplingInterval, world);
     estimator->runIteraions();
     if(world.rank() == 0){
-        estimator->writeParameters(PFilename, VFilename);
+        estimator->writeParameters(PFilename, VFilename, SampledPFilename, SampledVFilename);
         estimator->writeLogLikelihood(logLikelihoodFilename);
     }
     delete estimator;
