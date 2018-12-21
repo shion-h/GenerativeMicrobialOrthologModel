@@ -101,22 +101,19 @@ void GibbsSamplerFromGMOM::initializeParameters(){//{{{
     _sampledV = vector<vector<vector<unsigned int> > >(_M, vector<vector<unsigned int> >(_G, vector<unsigned int>(0, 0.0)));
     _P = vector<double>(_M, 0);
     _sampledP = vector<vector<double> >(_M, vector<double>(0, 0.0));
-    // random_device rnd;
-    // mt19937 mt(rnd());
-    // uniform_real_distribution<> rand(0.0, 1.0);
-    // for(int j=0; j<_M; j++){
-    //     for(int k=0; k<_G; k++){
-    //         boost::math::beta_distribution<> distribution(_alpha, _beta);
-    //         _P[j][k] = boost::math::quantile(distribution, rand(mt));
-    //     }
-    // }
     random_device rnd;
     mt19937 mt(rnd());
-    poisson_distribution<> rand(1.0);
     if(_world.rank()==0){
         for(int j=0; j<_M; j++){
+            std::gamma_distribution<> distribution(_k, _theta);
+            _P[j] = distribution(mt);
+        }
+    }
+    if(_world.rank()==0){
+        for(int j=0; j<_M; j++){
+            std::poisson_distribution<> distribution(_P[j]);
             for(int k=0; k<_G; k++){
-                _V[j][k] = rand(mt);
+                _V[j][k] = distribution(mt);
             }
         }
     }
