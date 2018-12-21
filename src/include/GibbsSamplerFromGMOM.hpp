@@ -21,11 +21,14 @@
 #include<iomanip>
 #include<fstream>
 #include<limits>
+#include<algorithm>
+#include<map>
 #include <boost/math/distributions/beta.hpp>
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/mpi/environment.hpp>
 #include <boost/mpi/communicator.hpp>
 #include <boost/mpi/collectives.hpp>
+#include <boost/serialization/utility.hpp>
 #include"CsvFileParser.hpp"
 #include"utils.hpp"
 

@@ -118,7 +118,10 @@ void GibbsSamplerFromGMOM::initializeParameters(){//{{{
         }
     }
     MPI_Barrier(MPI_COMM_WORLD);
+    bmpi::broadcast(_world, _P, 0);
+    MPI_Barrier(MPI_COMM_WORLD);
     bmpi::broadcast(_world, _V, 0);
+    MPI_Barrier(MPI_COMM_WORLD);
     _gamma = dot<double, double, unsigned int>(_U, _V);
     for(int i=0; i<_N; i++){
         for(int k=0; k<_G; k++){
@@ -154,33 +157,81 @@ double GibbsSamplerFromGMOM::calculateDirichletLogPDF(int k/*=-1*/){//{{{
 }//}}}
 
 void GibbsSamplerFromGMOM::sampleV(){//{{{
+    random_device rnd;
+    mt19937 mt(rnd());
     for(int j=0; j<_M; j++){
         for(int k=0; k<_G; k++){
-            double cumulativeProbability = 0.0;
-            vector<double> logSamplingDistribution;
-            unsigned int v = 0;
-            while(cumulativeProbability < 0.999){
-                double thisPMF = calculatePoissonPMF(v, _P[j]);
-                cumulativeProbability += thisPMF;
-                logSamplingDistribution.push_back(log(thisPMF));
-                v++;
-            }
-            this->updateGamma(j, k, 0 - _V[j][k]);
-            // if(_world.rank() == 0)cout<<logSamplingDistribution.size()<<endl;
-            for(v=0; v<logSamplingDistribution.size(); v++){
-                if((v%_world.size()) == _world.rank()){
-                    logSamplingDistribution[v] += this->calculateDirichletLogPDF(k);
-                }
-                this->updateGamma(j, k, 1);
+            double xi;
+            if(_world.rank() == 0){
+                double logProbabilityOfV = log(calculatePoissonPMF(_V[j][k], _P[j]));
+                logProbabilityOfV += this->calculateDirichletLogPDF(k);
+                // sample ujk with uniform distribution of [0, p~(vjk)]
+                uniform_real_distribution<double> rand1(0,1);
+                xi = log(rand1(mt)) + logProbabilityOfV;
             }
             MPI_Barrier(MPI_COMM_WORLD);
-            for(v=0; v<logSamplingDistribution.size(); v++){
-                bmpi::broadcast(_world, logSamplingDistribution[v], v%_world.size());
+            bmpi::broadcast(_world, xi, 0);
+            MPI_Barrier(MPI_COMM_WORLD);
+            // store [vjk, p~(vjk)] and vjk that exceed ujk
+            vector<unsigned int> valuesOfTargetedVjk;
+            // set vjk rank number
+            this->updateGamma(j, k, _world.rank() - _V[j][k]);
+            unsigned int c = 0;
+            bool isCensoring = false;
+            bool isOverMode = false;
+            double previousLogProbability = -numeric_limits<float>::infinity();
+            while(!isCensoring){
+                pair<unsigned int, double> pairOfVjkAndLogProbability;
+                unsigned int v = _world.rank() + c * _world.size();
+                pairOfVjkAndLogProbability.first = v;
+                // calculate p~(vjk)
+                pairOfVjkAndLogProbability.second = log(calculatePoissonPMF(v, _P[j]));
+                pairOfVjkAndLogProbability.second += this->calculateDirichletLogPDF(k);
+                if(pairOfVjkAndLogProbability.second > xi){
+                    valuesOfTargetedVjk.push_back(v);
+                }
+                // gather thisProbability to thisProbabilityVector in 0-rank
+                vector<pair<unsigned int, double> > pairsOfVjkAndLogProbability;
+                MPI_Barrier(MPI_COMM_WORLD);
+                bmpi::gather(_world, pairOfVjkAndLogProbability, pairsOfVjkAndLogProbability, 0);
+                MPI_Barrier(MPI_COMM_WORLD);
+                if(_world.rank() == 0){
+                    sort(pairsOfVjkAndLogProbability.begin(), pairsOfVjkAndLogProbability.end());
+                    for(pair<unsigned int, double> pair : pairsOfVjkAndLogProbability){
+                        if(pair.second < previousLogProbability) isOverMode = true;
+                        previousLogProbability = pair.second;
+                    }
+                    // is over xi
+                    if(isOverMode){
+                        for(pair<unsigned int, double> pair : pairsOfVjkAndLogProbability){
+                            if(pair.second < xi) isCensoring = true;
+                        }
+                    }
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+                bmpi::broadcast(_world, isCensoring, 0);
+                MPI_Barrier(MPI_COMM_WORLD);
+                c++;
+                this->updateGamma(j, k, _world.size());
             }
+            // gather targeted vjk information to valuesOfTargetedVjk in 0-rank
+            vector<vector<unsigned int> > valuesOfTargetedVjkMatrix;
+            MPI_Barrier(MPI_COMM_WORLD);
+            bmpi::gather(_world, valuesOfTargetedVjk, valuesOfTargetedVjkMatrix, 0);
+            MPI_Barrier(MPI_COMM_WORLD);
             if(_world.rank() == 0){
-                _V[j][k] = sampleDiscreteValues(logSamplingDistribution, true);
+                valuesOfTargetedVjk = reshapeMatrixToVector(valuesOfTargetedVjkMatrix);
+                // sample vjk in vjks that exceed ujk with uniform distribution
+                uniform_int_distribution<> rand2(0, valuesOfTargetedVjk.size()-1);
+                unsigned int sampledIndex = rand2(mt);
+                _V[j][k] = valuesOfTargetedVjk[sampledIndex];
             }
+            MPI_Barrier(MPI_COMM_WORLD);
             bmpi::broadcast(_world, _V[j][k], 0);
+            MPI_Barrier(MPI_COMM_WORLD);
+            // current v value
+            unsigned int v = c * _world.size() + _world.rank();
+            // set vjk from v to vjk
             this->updateGamma(j, k, _V[j][k] - v);
         }
     }
@@ -196,9 +247,10 @@ void GibbsSamplerFromGMOM::sampleP(){//{{{
             _P[j] = distribution(mt);
         }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
     for(int j=0; j<_M; j++){
+        MPI_Barrier(MPI_COMM_WORLD);
         bmpi::broadcast(_world, _P[j], j%_world.size());
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 }//}}}
 

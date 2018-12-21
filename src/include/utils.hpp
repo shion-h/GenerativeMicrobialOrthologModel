@@ -101,7 +101,7 @@ void printVector(const std::vector<T> &vector){
 }
 
 template<typename T>
-unsigned int sampleDiscreteValues(std::vector<T> &discreteDistribution, bool isLogValue = false){
+unsigned int sampleDiscreteValues(const std::vector<T> &discreteDistribution, bool isLogValue = false){
     if(isLogValue == true){
         std::vector<T> discreteNotLogDistribution(discreteDistribution);
         double bottomValue = *std::max_element(discreteDistribution.begin(), discreteDistribution.end());
@@ -151,7 +151,7 @@ void fillMatrix(std::vector<std::vector<T> > &matrix, T value){
 }
 
 template<typename T>
-T sum(std::vector<std::vector<std::vector<T> > > tensor){
+T sum(const std::vector<std::vector<std::vector<T> > > &tensor){
     T result(0);
     for(int i=0; i<tensor.size(); i++){
         for(int j=0; j<tensor[i].size(); j++){
@@ -162,7 +162,7 @@ T sum(std::vector<std::vector<std::vector<T> > > tensor){
 }
 
 template<typename T>
-T sum(std::vector<std::vector<T> > matrix){
+T sum(const std::vector<std::vector<T> > &matrix){
     T result(0);
     for(int i=0; i<matrix.size(); i++){
         result += accumulate(matrix[i].begin(), matrix[i].end(), 0.0);
@@ -171,17 +171,17 @@ T sum(std::vector<std::vector<T> > matrix){
 }
 
 template<typename T>
-T sum(std::vector<T> vector){
+T sum(const std::vector<T> &vector){
     return accumulate(vector.begin(), vector.end(), 0.0);
 }
 
 template<typename T>
-double mean(std::vector<T> vector){
+double mean(const std::vector<T> &vector){
     return accumulate(vector.begin(), vector.end(), 0.0) / vector.size();
 }
 
 template<typename T>
-std::vector<std::vector<T> > dot(std::vector<std::vector<T> > matrix1, std::vector<std::vector<T> > matrix2){
+std::vector<std::vector<T> > dot(const std::vector<std::vector<T> > &matrix1, const std::vector<std::vector<T> > &matrix2){
     std::vector<std::vector<T> > resultMatrix(matrix1.size(), std::vector<T>(matrix2[0].size(), 0));
     for(int i=0; i<matrix1.size(); i++){
         for(int j=0; j<matrix1[0].size(); j++){
@@ -194,7 +194,7 @@ std::vector<std::vector<T> > dot(std::vector<std::vector<T> > matrix1, std::vect
 }
 
 template<typename R, typename M1, typename M2>
-std::vector<std::vector<R> > dot(std::vector<std::vector<M1> > matrix1, std::vector<std::vector<M2> > matrix2){
+std::vector<std::vector<R> > dot(const std::vector<std::vector<M1> > &matrix1, const std::vector<std::vector<M2> > &matrix2){
     std::vector<std::vector<R> > resultMatrix(matrix1.size(), std::vector<R>(matrix2[0].size(), 0));
     for(int i=0; i<matrix1.size(); i++){
         for(int j=0; j<matrix1[0].size(); j++){
@@ -204,6 +204,40 @@ std::vector<std::vector<R> > dot(std::vector<std::vector<M1> > matrix1, std::vec
         }
     }
     return resultMatrix;
+}
+
+template<typename T>
+double logsumexp(const std::vector<T> &logVector){
+    std::vector<T> notLogVector(logVector);
+    double bottomValue = *std::max_element(logVector.begin(), logVector.end());
+    for(int i=0; i<notLogVector.size(); i++){
+        notLogVector[i] -= bottomValue;
+        notLogVector[i] = exp(notLogVector[i]);
+        if(std::isinf(notLogVector[i])){
+            std::cout<<"need?"<<std::endl;
+            notLogVector[i] = std::numeric_limits<T>::max();
+        }
+    }
+    double result = bottomValue + log(sum(notLogVector));
+    return result;
+}
+
+template<typename T>
+double logsumexp(T logProbability, const std::vector<T> &logVector){
+    std::vector<T> combinedLogVector(logVector);
+    combinedLogVector.push_back(logProbability);
+    return logsumexp(combinedLogVector);
+}
+
+template<typename T>
+std::vector<T> reshapeMatrixToVector(const std::vector<std::vector<T> > &Matrix){
+    std::vector<T> vector;
+    for(int i=0; i<Matrix.size(); i++){
+        for(int j=0; j<Matrix[i].size(); j++){
+            vector.push_back(Matrix[i][j]);
+        }
+    }
+    return vector;
 }
 
 #endif
